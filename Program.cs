@@ -1,4 +1,12 @@
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
 using PeliculasAPI;
+using PeliculasAPI.Services;
+using PeliculasAPI.Utilidades;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,12 +17,35 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton(proveedor => new MapperConfiguration(configuracion =>
+{
+    var geometryFactory = proveedor.GetService<GeometryFactory>();
+    configuracion.AddProfile(new AutoMapperProfiles(geometryFactory));
+}).CreateMapper());
+
+builder.Services.AddDbContext<ApplicationDbContext>(opciones => opciones.
+UseSqlServer("name=DefaultConnection", sqlServer => sqlServer.UseNetTopologySuite()));
+
+builder.Services.AddSingleton<GeometryFactory>(NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326));
+
 builder.Services.AddOutputCache(opciones =>
 {
-    opciones.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(15);
+    opciones.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(60);
 });
 
-builder.Services.AddTransient<IRepositorio, RepositorioSQLServer>();
+var origenesPermitidos = builder.Configuration.GetValue<string>("origenesPermitidos")!.Split(",");
+
+builder.Services.AddCors(opciones =>
+{
+    opciones.AddDefaultPolicy(opcionesCors =>
+    {
+        opcionesCors.WithOrigins(origenesPermitidos).AllowAnyMethod().AllowAnyHeader()
+        .WithExposedHeaders("cantidad-total-registros");
+    });
+});
+
+builder.Services.AddTransient<IAlmacenadorArchivos, AlmacenadorArchivosLocal>();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
@@ -26,6 +57,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
+app.UseCors();
 
 app.UseOutputCache();
 

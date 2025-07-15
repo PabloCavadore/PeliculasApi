@@ -1,71 +1,68 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.EntityFrameworkCore;
+using PeliculasAPI.DTOs;
 using PeliculasAPI.Entidades;
+using PeliculasAPI.Utilidades;
+
 
 namespace PeliculasAPI.Controllers
 {
     [Route("api/generos")]
     [ApiController]
 
-    public class GenerosController: ControllerBase
+    public class GenerosController: CustomBaseController
     {
-        private readonly IRepositorio repositorio;
+      
+        private readonly IOutputCacheStore outputCacheStore;
+        private readonly ApplicationDbContext context;
+        private readonly IMapper mapper;
+        private const string cacheTag = "generos";
 
-        public GenerosController(IRepositorio repositorio) 
+        
+
+        public GenerosController( IOutputCacheStore outputCacheStore, ApplicationDbContext context,
+           IMapper mapper):base(context, mapper, outputCacheStore, cacheTag) 
         {
-            this.repositorio = repositorio;
+        
+            this.outputCacheStore = outputCacheStore;
+            this.context = context;
+            this.mapper = mapper;
         }
+
 
         [HttpGet]
-        [HttpGet("listado")]
-        [HttpGet("/listado-generos")]
-        [OutputCache]
-        public List<Genero>Get() 
+        [OutputCache(Tags = [cacheTag])]
+        public async Task<List<GeneroDTO>> Get([FromQuery] PaginacionDTO paginacion) 
         {
-            
-            var generos = repositorio.ObtenerTodosLosGeneros();
-
-            return generos;
+            return await Get<Genero, GeneroDTO>(paginacion, ordenarPor: g => g.Nombre);            
         }
 
-        [HttpGet("{id:int}")]
-        [OutputCache]
-        public async Task<ActionResult<Genero>> Get(int id) 
+        [HttpGet("{id:int}", Name = "ObtenerGeneroPorId")]
+        [OutputCache(Tags = [cacheTag])]
+        public async Task<ActionResult<GeneroDTO>> Get(int id) 
         {
-            
-            var genero = await repositorio.ObtenerPorId(id);
-            
-            if (genero is null)
-            {
-                return NotFound();
-            }
-
-            return genero;
+            return await Get<Genero, GeneroDTO>(id);
         }
 
         [HttpPost]
-        public IActionResult Post([FromBody] Genero genero)
+        public async Task<IActionResult> Post([FromBody] GeneroCreacionDTO generoCreacionDTO)
         {
-            var repositorio = new RepositorioEnMemoria();
-            var yaExisteElGenero = repositorio.Existe(genero.Nombre);
-            if (yaExisteElGenero) 
-            {
-                return BadRequest($"Ya existe un genero con el nombre {genero.Nombre}");
-            }
-
-            return Ok();
+            return await Post<GeneroCreacionDTO, Genero, GeneroDTO>(generoCreacionDTO, "obtenerPorId");         
         }
 
-        [HttpPut]
-        public void PUT()
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> PUT(int id, [FromBody] GeneroCreacionDTO generoCreacionDTO)
         {
-
+           return await Put<GeneroCreacionDTO, Genero>(id, generoCreacionDTO);
         }
 
-        [HttpDelete]
-        public void Delete()
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult>Delete(int id)
         {
-
+           return await Delete<Genero>(id);
         }
     }
 }
