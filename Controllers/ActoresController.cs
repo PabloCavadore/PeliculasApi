@@ -23,7 +23,7 @@ namespace PeliculasAPI.Controllers
         private readonly string contenedor = "actores";
 
         public ActoresController(ApplicationDbContext context, IMapper mapper,
-            IOutputCacheStore outputCacheStore, IAlmacenadorArchivos almacenadorArchivos, string cacheTag)
+            IOutputCacheStore outputCacheStore, IAlmacenadorArchivos almacenadorArchivos)
             : base(context, mapper, outputCacheStore, cacheTag)
         {
             this.context = context;
@@ -46,7 +46,7 @@ namespace PeliculasAPI.Controllers
             return await Get<Actor, ActorDTO>(id);
         }
 
-        [HttpGet($"{{nombre}}")]
+        [HttpGet("{nombre}")]
         public async Task<ActionResult<List<PeliculaActorDTO>>> Get(string nombre)
         {
             return await context.Actores.Where(a => a.Nombre.Contains(nombre))
