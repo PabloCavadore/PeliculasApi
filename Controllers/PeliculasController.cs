@@ -61,9 +61,9 @@ namespace PeliculasAPI.Controllers
         [HttpGet("{id:int}", Name = "ObtenerPeliculaPorId")]
         public async Task<ActionResult<PeliculaDetallesDTO>> Get(int id)
         {
-           var pelicula = await context.Peliculas
-                .ProjectTo<PeliculaDetallesDTO>(mapper.ConfigurationProvider)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var pelicula = await context.Peliculas
+                 .ProjectTo<PeliculaDetallesDTO>(mapper.ConfigurationProvider)
+                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (pelicula is null)
             {
@@ -103,6 +103,41 @@ namespace PeliculasAPI.Controllers
             await outputCacheStore.EvictByTagAsync(cacheTag, default);
             var peliculaDTO = mapper.Map<PeliculaDTO>(pelicula);
             return CreatedAtRoute("ObtenerPeliculaPorId", new { id = pelicula.Id }, peliculaDTO);
+        }
+
+        [HttpGet("PutGet/{id:int}")]
+        public async Task<ActionResult<PeliculasPutGetDTO>>PutGet(int id)
+        {
+            var pelicula = await context.Peliculas
+                            .ProjectTo<PeliculaDetallesDTO>(mapper.ConfigurationProvider)
+                            .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (pelicula is null)
+            {
+                return NotFound();
+            }
+
+            var generosSeleccionadosIds = pelicula.Generos.Select(g => g.Id).ToList();
+            var generosNoSeleccionados = await context.Generos
+                .Where(g => !generosSeleccionadosIds.Contains(g.Id))
+                .ProjectTo<GeneroDTO>(mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            var cinesSeleccionadosIds = pelicula.Cines.Select(c => c.Id).ToList();
+            var cinesNoSeleccionados = await context.Cines
+                .Where(c => !cinesSeleccionadosIds.Contains(c.Id))
+                .ProjectTo<CineDTO>(mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            var respuesta = new PeliculasPutGetDTO();
+            respuesta.Pelicula = pelicula;
+            respuesta.GenerosSeleccionados = pelicula.Generos;
+            respuesta.GenerosNoSeleccionados = generosNoSeleccionados;
+            respuesta.CinesSeleccionados = pelicula.Cines;
+            respuesta.CinesNoSeleccionados = cinesNoSeleccionados;
+            respuesta.Actores = pelicula.Actores;
+
+            return respuesta;
         }
 
         private void AsignarOrdenActores(Pelicula pelicula) 
